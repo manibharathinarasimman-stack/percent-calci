@@ -1,0 +1,441 @@
+<!-- ===== START: percent-of-a-number-calculator.html ===== -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Percent Of A Number Calculator</title>
+<style>
+  :root{
+    --primary:#72337F; --secondary:#FFC412; --text:#000; --muted:#6b7280; --border:#ececec; --card:#fff;
+    --shadow:0 10px 24px rgba(0,0,0,.08),0 2px 10px rgba(0,0,0,.05);
+    --radius:14px; --focus:0 0 0 3px rgba(114,51,127,.18);
+    --btngrad:linear-gradient(135deg,#72337F, #8a4fa0 55%, #FFC412);
+  }
+  html,body{height:100%;margin:0;background:#fff;color:var(--text);font:14px/1.35 system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif}
+
+  /* Outer wrapper that can live alone OR inside your 350x500/500x350 slot */
+  .calc-shell{
+    /* Default embed size requested: width 350, height 500 */
+    width:350px; height:500px;
+    margin:16px auto;
+    border:1px solid var(--border); border-radius:16px; background:#fff; box-shadow:var(--shadow);
+    overflow:auto; position:relative;
+  }
+  /* Full-viewport when expanded */
+  .calc-shell.fullscreen{
+    position:fixed; inset:0; margin:0; width:100vw; height:100vh; border-radius:0; z-index:999999;
+    overflow:auto;
+  }
+  /* Support browser FS API too */
+  :fullscreen .calc-shell{ width:100vw; height:100vh; border-radius:0; }
+
+  /* Sticky top logo */
+  .logo-topbar{
+    position:sticky; top:0; z-index:50;
+    display:flex; justify-content:flex-end; align-items:center; gap:8px;
+    padding:6px 10px; background:#fff; border-bottom:1px solid var(--border);
+  }
+  .brand-logo{max-width:140px; max-height:42px; object-fit:contain; display:block}
+
+  /* Content */
+  .content{padding:10px}
+  header{display:flex; gap:10px; align-items:center; margin:6px 0 10px}
+  .badge{width:40px; height:40px; border-radius:12px; background:radial-gradient(120% 120% at 25% 20%,#9a64b2 0%,#72337F 60%); color:#fff; font-weight:800; display:grid; place-items:center; box-shadow:var(--shadow)}
+  h1{font-size:18px; margin:0; color:var(--primary); font-weight:800}
+  .sub{margin:2px 0 0; color:var(--muted); font-size:12px}
+
+  /* Inputs (no heavy section backgrounds as requested) */
+  .row{display:grid; grid-template-columns:1fr; gap:8px}
+  .row.two{grid-template-columns:1fr 1fr}
+  @media(min-width:680px){ .desktop-two{display:grid; grid-template-columns:1.1fr .9fr; gap:12px} }
+
+  label{font-weight:800; font-size:12px; margin:0 0 4px; display:block}
+  .field{display:flex; align-items:center; gap:8px; border:1px solid var(--border); border-radius:12px; padding:8px 10px; background:#fff; box-shadow:inset 0 1px 0 rgba(0,0,0,.03)}
+  .field:focus-within{box-shadow:var(--focus), inset 0 1px 0 rgba(0,0,0,.04); border-color:#e6d4eb}
+  input[type="text"], select{border:0; outline:none; background:transparent; font-size:16px; flex:1; min-width:0; color:var(--text)}
+  .muted{color:var(--muted); font-size:11px}
+  .error{display:none; color:#c0392b; font-weight:800; font-size:12px; margin-top:6px}
+
+  .controls{display:flex; gap:8px; flex-wrap:wrap; margin-top:8px}
+  .btn{
+    border:0; border-radius:12px; padding:10px 12px; font-weight:800; color:#fff; cursor:pointer;
+    background:var(--btngrad); background-size:220% 220%;
+    transition:transform .12s ease, box-shadow .12s ease, background-position 1.6s ease;
+  }
+  .btn:hover{box-shadow:0 8px 18px rgba(114,51,127,.18); background-position:100% 0}
+  .btn:active{transform:translateY(2px)}
+  .btn.secondary{color:var(--primary); background:#fff; border:1px solid #eadff0}
+  .btn.ghost{color:var(--primary); background:transparent; border:1px dashed #e6d4eb}
+  @media(prefers-reduced-motion:reduce){ .btn{transition:transform .12s ease, box-shadow .12s ease} }
+
+  .answer{
+    display:flex; align-items:center; justify-content:space-between; gap:8px;
+    border:1px solid var(--border); border-radius:12px; padding:10px; margin-top:10px; background:#fff;
+  }
+  .value{font-size:22px; font-weight:800; color:var(--primary)}
+
+  /* Steps (no duplicate numbers; <ol> handles numbering) */
+  .steps{margin-top:10px}
+  .steps-title{font-weight:800; margin-bottom:4px}
+  .steps ol{margin:6px 0 0 18px; padding:0}
+  .steps li{margin:4px 0; font-size:13px}
+
+  /* Visual kept SMALL by default, sits at bottom */
+  .visual{margin-top:10px}
+  .canvas-wrap{
+    border:1px solid var(--border); border-radius:12px; padding:8px; background:#fff; box-shadow:inset 0 0 0 1px #f7f7f7;
+  }
+  .canvas-box{width:100%; height:90px; border-radius:10px; background:#fff; overflow:hidden}
+  canvas{display:block; width:100%; height:100%}
+  .legend{display:flex; gap:12px; align-items:center; flex-wrap:wrap; margin-top:4px; font-size:11px; color:var(--muted)}
+  .sw{width:12px; height:12px; border-radius:3px; display:inline-block; margin-right:4px}
+  .sw.p{background:#72337F}
+  .sw.w{background:#FFC412}
+
+  /* Expand / Collapse button area – always visible */
+  .sticky-footer{
+    position:sticky; bottom:0; z-index:40;
+    display:flex; justify-content:flex-end; gap:8px;
+    padding:6px; background:linear-gradient(to top, rgba(255,255,255,0.95), rgba(255,255,255,0.7));
+    border-top:1px solid var(--border);
+  }
+  .fab{min-width:44px}
+
+  /* On-screen numeric keyboard – appears only on input focus, auto-hides after Enter */
+  .kbd{
+    position:sticky; bottom:0; z-index:45;
+    background:#fff; border-top:1px solid var(--border);
+    box-shadow:0 -10px 20px rgba(0,0,0,.06);
+    display:none;
+  }
+  .kbd.open{display:block}
+  .kbd-head{display:flex; justify-content:space-between; align-items:center; padding:6px 8px; border-bottom:1px solid #eee}
+  .kbd-title{font-weight:800; color:var(--primary); font-size:12px}
+  .kbd-close{border:0; background:transparent; font-weight:800; color:var(--primary); cursor:pointer}
+  .kbd-grid{display:grid; grid-template-columns:repeat(4,1fr); gap:6px; padding:6px}
+  .kbd-grid button{
+    padding:10px 0; border-radius:10px; border:1px solid #eee; background:#fafafa; font-weight:800; cursor:pointer;
+  }
+  .kbd-grid button.primary{background:var(--btngrad); color:#fff; border:0}
+
+  /* Tiny mascot (decorative only) */
+  .mascot{position:absolute; right:6px; bottom:54px; opacity:.12; pointer-events:none}
+  .mascot svg{width:80px; height:60px}
+
+  /* Make sure long content never hides behind sticky bars */
+  .pad-b{padding-bottom:88px}
+</style>
+</head>
+<body>
+  <div id="calc" class="calc-shell" role="application" aria-label="Percent Of A Number Calculator">
+    <!-- Top logo (fixed within header, never overlaps text) -->
+    <div class="logo-topbar">
+      <img class="brand-logo" alt="BrightChamps Logo" src="https://ik.imagekit.io/brightchamps/website/brightchamps_logo_colour.png">
+    </div>
+
+    <div class="content pad-b">
+      <header>
+        <div class="badge" aria-hidden="true">%</div>
+        <div>
+          <h1>Percent Of A Number</h1>
+          <div class="sub">Compute <b>P%</b> of a number <b>N</b> with clear steps. Visual stays small and at the bottom.</div>
+        </div>
+      </header>
+
+      <!-- TWO COLUMN on desktop only (calculator left, visual right) -->
+      <div class="desktop-two">
+        <!-- LEFT: Calculator -->
+        <section aria-labelledby="calcTitle">
+          <h2 id="calcTitle" style="font-size:14px;margin:0 0 6px">Enter values</h2>
+          <form id="form" autocomplete="off">
+            <div class="row two">
+              <div>
+                <label for="percent">Percentage (P%)</label>
+                <div class="field"><input id="percent" type="text" inputmode="decimal" placeholder="e.g., 25" value="25" aria-label="Percentage (P)"></div>
+                <div class="muted">Enter as percent (e.g., 12.5)</div>
+              </div>
+              <div>
+                <label for="number">Number (N)</label>
+                <div class="field"><input id="number" type="text" inputmode="decimal" placeholder="e.g., 200" value="200" aria-label="Number (N)"></div>
+                <div class="muted">Any real number</div>
+              </div>
+            </div>
+
+            <div class="row two" style="margin-top:6px">
+              <div>
+                <label for="precision">Display precision</label>
+                <div class="field">
+                  <select id="precision" aria-label="Decimal precision">
+                    <option value="0">0</option><option value="1">1</option>
+                    <option value="2" selected>2</option><option value="3">3</option><option value="4">4</option>
+                  </select>
+                </div>
+              </div>
+              <div style="display:flex;align-items:flex-end"><div class="muted"><b>Formula:</b> Result = (P ÷ 100) × N</div></div>
+            </div>
+
+            <div id="err" class="error" role="alert"></div>
+
+            <div class="controls">
+              <button class="btn" id="btnCalc" type="submit">Calculate</button>
+              <button class="btn secondary" id="btnSample" type="button">Sample</button>
+              <button class="btn ghost" id="btnReset" type="button">Reset</button>
+              <button class="btn secondary" id="btnCopy" type="button">Copy Result</button>
+            </div>
+          </form>
+
+          <div class="answer" aria-live="polite" aria-atomic="true">
+            <div>
+              <div class="muted">Answer</div>
+              <div id="ans" class="value">—</div>
+            </div>
+            <div id="meta" class="muted">—</div>
+          </div>
+
+          <div class="steps">
+            <div class="steps-title">Step-by-step</div>
+            <!-- IMPORTANT: no numbers inside <li> (the <ol> numbers them) -->
+            <ol id="steps">
+              <li>Formula: Result = (P ÷ 100) × N</li>
+              <li>Substitution</li>
+              <li>Simplification</li>
+              <li>Final Answer</li>
+            </ol>
+          </div>
+        </section>
+
+        <!-- RIGHT: Visual (kept small even on desktop) -->
+        <aside aria-labelledby="visualTitle" class="visual">
+          <h2 id="visualTitle" style="font-size:14px;margin:0 0 6px">Part vs Whole</h2>
+          <div class="canvas-wrap">
+            <div class="canvas-box"><canvas id="viz" width="640" height="180" aria-label="Part vs Whole visual"></canvas></div>
+            <div class="legend"><span><span class="sw p"></span>Part (P% of N)</span><span><span class="sw w"></span>Whole (N)</span></div>
+          </div>
+        </aside>
+      </div>
+    </div>
+
+    <!-- Tiny decorative mascot (behind content) -->
+    <div class="mascot" aria-hidden="true">
+      <svg viewBox="0 0 120 90">
+        <defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#72337F" offset="0"/><stop stop-color="#FFC412" offset="1"/></linearGradient></defs>
+        <circle cx="30" cy="60" r="20" fill="url(#g)"/><rect x="50" y="38" width="56" height="38" rx="10" fill="#8f4fa3"/>
+        <circle cx="72" cy="54" r="6" fill="#fff"/><circle cx="88" cy="54" r="6" fill="#fff"/>
+        <circle cx="71" cy="54" r="2.5" fill="#72337F"/><circle cx="87" cy="54" r="2.5" fill="#72337F"/>
+        <path d="M66,70 Q80,78 94,70" stroke="#fff" stroke-width="3" fill="none" stroke-linecap="round"/>
+      </svg>
+    </div>
+
+    <!-- Sticky footer: Expand/Collapse always visible -->
+    <div class="sticky-footer">
+      <button class="btn fab" id="btnExpand" aria-label="Expand to full screen">⛶</button>
+    </div>
+
+    <!-- On-screen numeric keyboard (appears only when focusing inputs; auto-closes after Enter) -->
+    <div class="kbd" id="kbd" aria-hidden="true">
+      <div class="kbd-head">
+        <div class="kbd-title">Numeric Keyboard</div>
+        <button class="kbd-close" id="kbdClose" aria-label="Close keyboard">✕</button>
+      </div>
+      <div class="kbd-grid">
+        <button>7</button><button>8</button><button>9</button><button class="primary" data-act="back">⌫</button>
+        <button>4</button><button>5</button><button>6</button><button class="primary" data-act="ac">AC</button>
+        <button>1</button><button>2</button><button>3</button><button>00</button>
+        <button>0</button><button>.</button><button>000</button><button class="primary" data-act="enter">Enter</button>
+      </div>
+    </div>
+  </div>
+
+<script>
+(function(){
+  'use strict';
+  const CONFIG = { precision: 2 };
+
+  const qs=(s,el=document)=>el.querySelector(s);
+  const shell=qs('#calc');
+  const percentEl=qs('#percent'); const numberEl=qs('#number'); const precEl=qs('#precision');
+  const errEl=qs('#err'); const ansEl=qs('#ans'); const metaEl=qs('#meta'); const stepsList=qs('#steps');
+  const btnCalc=qs('#btnCalc'); const btnSample=qs('#btnSample'); const btnReset=qs('#btnReset'); const btnCopy=qs('#btnCopy');
+  const btnExpand=qs('#btnExpand');
+  const canvas=qs('#viz'); const ctx=canvas.getContext('2d');
+  const kbd=qs('#kbd'); const kbdClose=qs('#kbdClose');
+  let currentInput=null;
+
+  /* Formatting helpers */
+  const getPrecision=()=>Number.isFinite(+precEl.value)?+precEl.value:CONFIG.precision;
+  const fmt=(n,p=getPrecision())=>{ try{return new Intl.NumberFormat(undefined,{maximumFractionDigits:p}).format(n);}catch{return Number(n).toFixed(p);} };
+  const parseNum=v=>{ const x=Number(String(v).trim().replace(/,/g,'')); return Number.isFinite(x)?x:NaN; };
+
+  /* Audio bells (gracefully degrade) */
+  let audioCtx=null, audioOK=true;
+  function ac(){ if(audioCtx) return audioCtx; try{ audioCtx=new (window.AudioContext||window.webkitAudioContext)(); }catch(e){ audioOK=false; } return audioCtx; }
+  function bell(kind='tap'){
+    if(!audioOK) return; const c=ac(); if(!c) return;
+    const o=c.createOscillator(), g=c.createGain(); o.connect(g); g.connect(c.destination);
+    const t=c.currentTime;
+    if(kind==='tap'){ o.type='triangle'; o.frequency.setValueAtTime(740,t); g.gain.setValueAtTime(.0001,t); g.gain.exponentialRampToValueAtTime(.08,t+.01); g.gain.exponentialRampToValueAtTime(.0001,t+.12); o.start(t); o.stop(t+.16); }
+    else if(kind==='success'){ o.type='sine'; o.frequency.setValueAtTime(660,t); g.gain.setValueAtTime(.0001,t); g.gain.exponentialRampToValueAtTime(.14,t+.02); g.gain.exponentialRampToValueAtTime(.0001,t+.26); o.start(t); o.stop(t+.30); }
+    else{ o.type='sawtooth'; o.frequency.setValueAtTime(220,t); g.gain.setValueAtTime(.0001,t); g.gain.exponentialRampToValueAtTime(.12,t+.02); g.gain.exponentialRampToValueAtTime(.0001,t+.22); o.start(t); o.stop(t+.26); }
+  }
+
+  /* Keyboard drawer (appears only on focus; closes on Done/outside/Enter) */
+  function openKBD(inp){ currentInput=inp; kbd.classList.add('open'); kbd.setAttribute('aria-hidden','false'); }
+  function closeKBD(){ kbd.classList.remove('open'); kbd.setAttribute('aria-hidden','true'); currentInput=null; }
+  [percentEl,numberEl].forEach(inp=>{
+    inp.addEventListener('focus',()=>{ openKBD(inp); bell('tap'); });
+    inp.addEventListener('keydown',(e)=>{
+      if(e.key==='Enter'){ e.preventDefault(); calculate(); closeKBD(); }
+      if(e.key==='ArrowUp'||e.key==='ArrowDown'){ e.preventDefault(); stepValue(inp, e.key==='ArrowUp'?1:-1); }
+    });
+    inp.addEventListener('input',()=>bell('tap'));
+  });
+  kbdClose.addEventListener('click',()=>{ closeKBD(); bell('tap'); });
+  kbd.addEventListener('click',(e)=>{
+    const t=e.target; if(!(t instanceof HTMLButtonElement)) return;
+    const act=t.getAttribute('data-act');
+    if(act==='back'){ if(currentInput){ currentInput.value=currentInput.value.slice(0,-1); currentInput.focus(); bell('tap'); } return; }
+    if(act==='ac'){ if(currentInput){ currentInput.value=''; currentInput.focus(); bell('tap'); } return; }
+    if(act==='enter'){ calculate(); closeKBD(); bell('success'); return; }
+    if(currentInput){ currentInput.value+=t.textContent; currentInput.focus(); bell('tap'); }
+  });
+  document.addEventListener('click',(e)=>{
+    if(!kbd.contains(e.target) && e.target!==currentInput && ![percentEl,numberEl].includes(e.target)){ closeKBD(); }
+  });
+  function stepValue(inp,dir){ const v=parseNum(inp.value)||0; inp.value=String(v+dir); }
+
+  /* Calculation + steps */
+  function showErr(msg){ errEl.textContent=msg; errEl.style.display='block'; bell('warn'); }
+  function clearErr(){ errEl.textContent=''; errEl.style.display='none'; }
+  function calculate(ev){
+    if(ev) ev.preventDefault();
+    clearErr();
+    const P=parseNum(percentEl.value), N=parseNum(numberEl.value);
+    if(!Number.isFinite(P) || !Number.isFinite(N)){ showErr('Please enter valid numbers for P and N.'); return; }
+    const part=(P/100)*N;
+    ansEl.textContent=fmt(part);
+    metaEl.textContent=`${fmt(P,2)}% of ${fmt(N)} = ${fmt(part)}`;
+    const steps=[
+      'Formula: Result = (P ÷ 100) × N',
+      `Substitution: Result = (${P} ÷ 100) × ${N}`,
+      `Simplification: (${P} ÷ 100) = ${P/100}`,
+      `Final Answer: ${fmt(part)}`
+    ];
+    stepsList.innerHTML='';
+    steps.forEach(s=>{ const li=document.createElement('li'); li.textContent=s; stepsList.appendChild(li); });
+    draw(part,N);
+    bell('success');
+  }
+
+  /* Small bottom visual – always compact, labels never overlap */
+  function draw(part,total){
+    const dpr=Math.max(1,window.devicePixelRatio||1);
+    const w=canvas.clientWidth, h=canvas.clientHeight;
+    canvas.width=Math.round(w*dpr); canvas.height=Math.round(h*dpr);
+    ctx.setTransform(dpr,0,0,dpr,0,0);
+    ctx.clearRect(0,0,w,h);
+
+    // grid
+    ctx.strokeStyle='#EEE'; ctx.lineWidth=1;
+    for(let x=0; x<w; x+=32){ ctx.beginPath(); ctx.moveTo(x+.5, 10.5); ctx.lineTo(x+.5, h-24.5); ctx.stroke(); }
+    // baseline
+    ctx.strokeStyle='#BBB'; ctx.lineWidth=1.5;
+    ctx.beginPath(); ctx.moveTo(8.5, h-24.5); ctx.lineTo(w-8.5, h-24.5); ctx.stroke();
+
+    // bar frame
+    const left=12, right=w-12, top=18, bottom=h-32;
+    const bw=right-left, bh=bottom-top;
+
+    // whole
+    roundRect(ctx,left,top,bw,bh,10,true,false,'#FFC41222','#FFC412');
+
+    // part
+    const ratio=(Number.isFinite(total)&&total!==0)?Math.max(0,Math.min(1, part/total)):0;
+    roundRect(ctx,left,top,bw*ratio,bh,10,true,false,'#72337F','#72337F');
+
+    // labels (clipped to avoid collision with edges)
+    ctx.fillStyle='#000'; ctx.font='12px system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif';
+    ctx.fillText(`Whole N = ${fmt(total)}`, left, top-4);
+    const pct=(Number.isFinite(total)&&total!==0)?(part/total*100):0;
+    const label=`Part = ${fmt(part)} (${fmt(pct,2)}%)`;
+    const maxLabelWidth=w-24; // padding
+    trimText(ctx,label,left,bottom+14,maxLabelWidth);
+  }
+  function roundRect(c,x,y,w,h,r,fill,stroke,fillStyle,strokeStyle){
+    c.beginPath();
+    c.moveTo(x+r,y); c.arcTo(x+w,y,x+w,y+h,r); c.arcTo(x+w,y+h,x,y+h,r);
+    c.arcTo(x,y+h,x,y,r); c.arcTo(x,y,x+w,y,r); c.closePath();
+    if(fill){ c.fillStyle=fillStyle; c.fill(); }
+    if(stroke){ c.strokeStyle=strokeStyle; c.stroke(); }
+  }
+  function trimText(c,txt,x,y,maxW){
+    if(c.measureText(txt).width<=maxW){ c.fillText(txt,x,y); return; }
+    let t=txt;
+    while(t.length>3 && c.measureText(t+'…').width>maxW){ t=t.slice(0,-1); }
+    c.fillText(t+'…',x,y);
+  }
+
+  /* Buttons */
+  btnCalc.addEventListener('click',calculate);
+  qs('#form').addEventListener('submit',calculate);
+  btnSample.addEventListener('click',()=>{
+    const S=[{p:25,n:200},{p:12.5,n:80},{p:7.2,n:450},{p:150,n:18}];
+    const s=S[Math.floor(Math.random()*S.length)];
+    percentEl.value=s.p; numberEl.value=s.n; bell('tap'); calculate();
+  });
+  btnReset.addEventListener('click',()=>{
+    percentEl.value='25'; numberEl.value='200';
+    ansEl.textContent='—'; metaEl.textContent='—';
+    stepsList.innerHTML='<li>Formula: Result = (P ÷ 100) × N</li><li>Substitution</li><li>Simplification</li><li>Final Answer</li>';
+    bell('tap'); draw(0,0);
+  });
+  btnCopy.addEventListener('click',()=>{
+    const txt=`P=${percentEl.value}% | N=${numberEl.value}\nResult: ${ansEl.textContent}`;
+    (navigator.clipboard?.writeText(txt)||Promise.reject()).then(()=>bell('success')).catch(()=>bell('warn'));
+  });
+  [percentEl,numberEl,precEl].forEach(el=> el.addEventListener('change',calculate));
+  window.addEventListener('resize',()=> draw((parseNum(percentEl.value)/100)*parseNum(numberEl.value), parseNum(numberEl.value)));
+
+  /* Expand / Collapse (in-page fullscreen toggle). Works inside iframes. */
+  btnExpand.addEventListener('click', async ()=>{
+    bell('tap');
+    const isFS=document.fullscreenElement || shell.classList.contains('fullscreen');
+    if(!isFS){
+      // Prefer native fullscreen if allowed
+      if(shell.requestFullscreen){ try{ await shell.requestFullscreen(); }catch(e){ shell.classList.add('fullscreen'); } }
+      else{ shell.classList.add('fullscreen'); }
+      btnExpand.textContent='↩︎';
+      btnExpand.setAttribute('aria-label','Exit full screen');
+    }else{
+      if(document.fullscreenElement){ await document.exitFullscreen(); }
+      shell.classList.remove('fullscreen');
+      btnExpand.textContent='⛶';
+      btnExpand.setAttribute('aria-label','Expand to full screen');
+    }
+    // redraw to new size
+    setTimeout(()=> draw((parseNum(percentEl.value)/100)*parseNum(numberEl.value), parseNum(numberEl.value)), 60);
+  });
+  document.addEventListener('fullscreenchange',()=>{
+    const isFS=!!document.fullscreenElement;
+    if(!isFS) shell.classList.remove('fullscreen');
+    btnExpand.textContent=isFS?'↩︎':'⛶';
+  });
+
+  /* QA self-tests */
+  (function qa(){
+    let pass=0, total=3;
+    const close=(a,b)=>Math.abs(a-b)<1e-9;
+    if(close((25/100)*200,50)) pass++;
+    if(close((12.5/100)*80,10)) pass++;
+    if(close((150/100)*18,27)) pass++;
+    console.log(`QA Passed ${pass}/${total}`);
+  })();
+
+  /* init */
+  calculate();
+
+})();
+</script>
+</body>
+</html>
+<!-- ===== END: percent-of-a-number-calculator.html ===== -->
